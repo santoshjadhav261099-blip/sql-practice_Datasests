@@ -1,0 +1,205 @@
+1️⃣ Get all employees
+SELECT * FROM employees;
+
+2️⃣ Get employees from a specific department
+SELECT employee_id, name, department_id
+FROM employees
+WHERE department_id = 5;
+
+3️⃣ Count employees per department
+SELECT department_id, COUNT(*) AS total_employees
+FROM employees
+GROUP BY department_id;
+
+4️⃣ Find employees who joined after 2020
+SELECT *
+FROM employees
+WHERE hire_date > '2020-01-01';
+
+✅ 2. departments
+1️⃣ List all departments
+SELECT * FROM departments;
+
+2️⃣ Number of employees per department (JOIN)
+SELECT d.department_name, COUNT(e.employee_id) AS total_employees
+FROM departments d
+LEFT JOIN employees e ON d.department_id = e.department_id
+GROUP BY d.department_name;
+
+✅ 3. salaries
+1️⃣ All salary records
+SELECT * FROM salaries;
+
+2️⃣ Latest salary per employee
+SELECT employee_id, salary, effective_date
+FROM salaries
+QUALIFY ROW_NUMBER() OVER (PARTITION BY employee_id ORDER BY effective_date DESC) = 1;
+
+
+(Use LIMIT + ORDER BY if your SQL engine doesn't support QUALIFY)
+
+3️⃣ Employees with salary greater than 80K
+SELECT employee_id, salary
+FROM salaries
+WHERE salary > 80000;
+
+✅ 4. performance_reviews
+1️⃣ Top performers (rating ≥ 4)
+SELECT employee_id, rating, review_year
+FROM performance_reviews
+WHERE rating >= 4;
+
+2️⃣ Average rating per employee
+SELECT employee_id, AVG(rating) AS avg_rating
+FROM performance_reviews
+GROUP BY employee_id;
+
+✅ 5. projects
+1️⃣ Active projects by year
+SELECT *
+FROM projects
+WHERE start_date BETWEEN '2021-01-01' AND '2021-12-31';
+
+2️⃣ Total budget by department
+SELECT department_id, SUM(budget) AS total_budget
+FROM projects
+GROUP BY department_id;
+
+✅ 6. project_assignments
+1️⃣ Employees assigned to project 10
+SELECT employee_id
+FROM project_assignments
+WHERE project_id = 10;
+
+2️⃣ Count employees per project
+SELECT project_id, COUNT(employee_id) AS employees_assigned
+FROM project_assignments
+GROUP BY project_id;
+
+3️⃣ Project duration (in days)
+SELECT project_id,
+       DATEDIFF(end_date, start_date) AS duration_days
+FROM project_assignments;
+
+✅ 7. customers
+1️⃣ All customers from India
+SELECT *
+FROM customers
+WHERE country = 'India';
+
+2️⃣ Customers who signed up in 2023
+SELECT *
+FROM customers
+WHERE signup_date BETWEEN '2023-01-01' AND '2023-12-31';
+
+✅ 8. products
+1️⃣ All electronics products
+SELECT *
+FROM products
+WHERE category_id = 1;
+
+2️⃣ Expensive products (price > 30000)
+SELECT product_id, product_name, price
+FROM products
+WHERE price > 30000;
+
+✅ 9. sales
+1️⃣ All sales records
+SELECT * FROM sales;
+
+2️⃣ Total sales revenue
+SELECT SUM(quantity * price) AS revenue
+FROM sales s
+JOIN products p ON s.product_id = p.product_id;
+
+3️⃣ Top 5 customers by spending
+SELECT c.name, SUM(s.quantity * p.price) AS total_spent
+FROM sales s
+JOIN customers c ON s.customer_id = c.customer_id
+JOIN products p ON s.product_id = p.product_id
+GROUP BY c.name
+ORDER BY total_spent DESC
+LIMIT 5;
+
+4️⃣ Monthly sales count
+SELECT DATE_TRUNC('month', sale_date) AS sale_month, COUNT(*) AS total_sales
+FROM sales
+GROUP BY sale_month
+ORDER BY sale_month;
+
+✅ 10. inventory
+1️⃣ Low stock products (stock < 100)
+SELECT p.product_name, i.stock
+FROM inventory i
+JOIN products p ON i.product_id = p.product_id
+WHERE i.stock < 100;
+
+2️⃣ Latest restocked items
+SELECT product_id, stock, last_restock_date
+FROM inventory
+ORDER BY last_restock_date DESC
+LIMIT 10;
+
+🟦 Now the BEST part — Mixed JOIN Queries (Frequently Asked in Deloitte)
+1️⃣ Employee + Project + Department
+SELECT e.name, d.department_name, p.project_name
+FROM employees e
+JOIN departments d ON e.department_id = d.department_id
+JOIN project_assignments pa ON e.employee_id = pa.employee_id
+JOIN projects p ON pa.project_id = p.project_id;
+
+2️⃣ Customer purchase report
+SELECT c.name AS customer,
+       p.product_name,
+       s.quantity,
+       (s.quantity * p.price) AS amount
+FROM sales s
+JOIN customers c ON s.customer_id = c.customer_id
+JOIN products p ON s.product_id = p.product_id;
+
+3️⃣ Department wise total project budget + employee count
+SELECT d.department_name,
+       COUNT(e.employee_id) AS total_employees,
+       SUM(p.budget) AS total_project_budget
+FROM departments d
+LEFT JOIN employees e ON e.department_id = d.department_id
+LEFT JOIN projects p ON p.department_id = d.department_id
+GROUP BY d.department_name;
+
+🟦 Window Function Queries (Deloitte Favorites)
+1️⃣ Rank products by price (per category)
+SELECT product_id, product_name, category_id, price,
+       RANK() OVER (PARTITION BY category_id ORDER BY price DESC) AS price_rank
+FROM products;
+
+2️⃣ Rank customers by spending
+SELECT c.customer_id, c.name,
+       SUM(s.quantity * p.price) AS total_spent,
+       RANK() OVER (ORDER BY SUM(s.quantity * p.price) DESC) AS spending_rank
+FROM sales s
+JOIN customers c ON s.customer_id = c.customer_id
+JOIN products p ON s.product_id = p.product_id
+GROUP BY c.customer_id, c.name;
+
+🟦 Hard Queries (Senior Analyst / Experienced Round)
+1️⃣ Find employees working on 2 or more projects
+SELECT employee_id, COUNT(project_id) AS project_count
+FROM project_assignments
+GROUP BY employee_id
+HAVING COUNT(project_id) >= 2;
+
+2️⃣ Find products that were never sold
+
+SELECT *
+FROM products
+WHERE product_id NOT IN (SELECT product_id FROM sales);
+3️⃣ Find overlapping project assignments for same employee
+sql
+Copy code
+SELECT a.employee_id, a.project_id, b.project_id
+FROM project_assignments a
+JOIN project_assignments b
+  ON a.employee_id = b.employee_id
+ AND a.project_id <> b.project_id
+ AND a.start_date < b.end_date
+ AND b.start_date < a.end_date;
